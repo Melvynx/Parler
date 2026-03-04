@@ -151,7 +151,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         | string
         | null
         | undefined;
-      const model = (getSetting("openrouter_cloud_model") as string | undefined) || "";
+      const model =
+        (getSetting("openrouter_cloud_model") as string | undefined) || "";
       if (!apiKey || apiKey.trim().length === 0 || model.trim().length === 0) {
         setShowModelDropdown(false);
         return;
@@ -262,8 +263,15 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onModelSelect={handleModelSelect}
             hasOpenRouterCloudConfig={
               !!(
-                (getSetting("openrouter_cloud_api_key") as string | null | undefined)?.trim() &&
-                (getSetting("openrouter_cloud_model") as string | undefined)?.trim()
+                (
+                  getSetting("openrouter_cloud_api_key") as
+                    | string
+                    | null
+                    | undefined
+                )?.trim() &&
+                (
+                  getSetting("openrouter_cloud_model") as string | undefined
+                )?.trim()
               )
             }
           />

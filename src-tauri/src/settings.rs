@@ -960,7 +960,9 @@ mod tests {
         let mut settings = get_default_settings();
         settings.post_process_provider_id = "gemini".to_string();
         settings.selected_model = "gemini-api".to_string();
-        settings.post_process_api_keys.insert("gemini".to_string(), "k".to_string());
+        settings
+            .post_process_api_keys
+            .insert("gemini".to_string(), "k".to_string());
         settings
             .post_process_models
             .insert("gemini".to_string(), "gemini-2.5-flash".to_string());

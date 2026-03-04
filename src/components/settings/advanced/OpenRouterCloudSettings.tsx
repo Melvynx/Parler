@@ -12,11 +12,12 @@ export const OpenRouterCloudSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, updateSetting } = useSettings();
 
-  const apiKey =
-    ((getSetting("openrouter_cloud_api_key") as string | null | undefined) ??
-      "").toString();
-  const currentModel =
-    ((getSetting("openrouter_cloud_model") as string | undefined) ?? "").trim();
+  const apiKey = (
+    (getSetting("openrouter_cloud_api_key") as string | null | undefined) ?? ""
+  ).toString();
+  const currentModel = (
+    (getSetting("openrouter_cloud_model") as string | undefined) ?? ""
+  ).trim();
 
   const [localApiKey, setLocalApiKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(currentModel);
@@ -189,9 +190,7 @@ export const OpenRouterCloudSettings: React.FC = () => {
           {feedback.type !== "idle" && (
             <div
               className={`text-xs max-w-[360px] text-right ${
-                feedback.type === "success"
-                  ? "text-green-500"
-                  : "text-red-500"
+                feedback.type === "success" ? "text-green-500" : "text-red-500"
               }`}
             >
               {feedback.message}

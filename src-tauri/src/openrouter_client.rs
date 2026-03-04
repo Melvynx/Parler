@@ -134,7 +134,9 @@ fn maybe_model_incompatible_error(model: &str, error_body: &str) -> Option<Strin
 
 pub async fn transcribe_audio(api_key: &str, model: &str, audio_samples: &[f32]) -> Result<String> {
     if api_key.trim().is_empty() {
-        return Err(anyhow::anyhow!("OpenRouter cloud API key is not configured"));
+        return Err(anyhow::anyhow!(
+            "OpenRouter cloud API key is not configured"
+        ));
     }
     if model.trim().is_empty() {
         return Err(anyhow::anyhow!("OpenRouter cloud model is not configured"));
@@ -236,7 +238,8 @@ mod tests {
 
     #[test]
     fn builds_transcription_request_with_audio_part() {
-        let request = build_transcription_request("openai/gpt-4o-mini-transcribe", "abc".to_string());
+        let request =
+            build_transcription_request("openai/gpt-4o-mini-transcribe", "abc".to_string());
         assert_eq!(request.model, "openai/gpt-4o-mini-transcribe");
         assert_eq!(request.messages.len(), 1);
         assert_eq!(request.messages[0].content.len(), 2);
@@ -251,10 +254,8 @@ mod tests {
 
     #[test]
     fn detects_model_audio_incompatibility() {
-        let err = maybe_model_incompatible_error(
-            "foo/bar",
-            "input_audio is unsupported for this model",
-        );
+        let err =
+            maybe_model_incompatible_error("foo/bar", "input_audio is unsupported for this model");
         assert!(err.is_some());
     }
 

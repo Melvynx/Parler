@@ -67,18 +67,30 @@ const PostProcessingActionsComponent: React.FC = () => {
         savedModelId = id;
       }
     }
-    setEditingAction({ key: action.key, name: action.name, prompt: action.prompt, savedModelId, isNew: false });
+    setEditingAction({
+      key: action.key,
+      name: action.name,
+      prompt: action.prompt,
+      savedModelId,
+      isNew: false,
+    });
   };
 
   const handleSave = async () => {
-    if (!editingAction || !editingAction.name.trim() || !editingAction.prompt.trim())
+    if (
+      !editingAction ||
+      !editingAction.name.trim() ||
+      !editingAction.prompt.trim()
+    )
       return;
 
     try {
       let model: string | null = null;
       let providerId: string | null = null;
       if (editingAction.savedModelId) {
-        const saved = savedModels.find((m) => m.id === editingAction.savedModelId);
+        const saved = savedModels.find(
+          (m) => m.id === editingAction.savedModelId,
+        );
         if (saved) {
           model = saved.model_id;
           providerId = saved.provider_id;
@@ -147,7 +159,8 @@ const PostProcessingActionsComponent: React.FC = () => {
                     {action.provider_id && action.model && (
                       <span className="text-xs text-mid-gray/60 ml-2">
                         {savedModels.find(
-                          (m) => m.id === `${action.provider_id}:${action.model}`,
+                          (m) =>
+                            m.id === `${action.provider_id}:${action.model}`,
                         )?.label || action.model}
                       </span>
                     )}
@@ -278,11 +291,7 @@ const PostProcessingActionsComponent: React.FC = () => {
         )}
 
         {!editingAction && actions.length < 9 && (
-          <Button
-            onClick={handleStartCreate}
-            variant="primary"
-            size="md"
-          >
+          <Button onClick={handleStartCreate} variant="primary" size="md">
             {t("settings.postProcessing.actions.addAction")}
           </Button>
         )}
@@ -297,9 +306,7 @@ const PostProcessingActionsComponent: React.FC = () => {
   );
 };
 
-export const PostProcessingActions = React.memo(
-  PostProcessingActionsComponent,
-);
+export const PostProcessingActions = React.memo(PostProcessingActionsComponent);
 PostProcessingActions.displayName = "PostProcessingActions";
 
 const PostProcessingApiSettings: React.FC = () => {
@@ -323,7 +330,8 @@ const PostProcessingApiSettings: React.FC = () => {
   const modelMap = getSetting("post_process_models") || {};
   const selectedModel =
     (modelMap[selectedProviderId] as string | undefined) || "";
-  const currentApiKey = (apiKeyMap[selectedProviderId] as string | undefined) || "";
+  const currentApiKey =
+    (apiKeyMap[selectedProviderId] as string | undefined) || "";
 
   const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
   const [baseUrlInput, setBaseUrlInput] = useState(baseUrl);
@@ -371,7 +379,9 @@ const PostProcessingApiSettings: React.FC = () => {
       const models = await fetchPostProcessModels(selectedProviderId);
       setValidationMessage({
         type: "success",
-        text: t("settings.openrouterCloud.modelsLoaded", { count: models.length }),
+        text: t("settings.openrouterCloud.modelsLoaded", {
+          count: models.length,
+        }),
       });
     } catch (error) {
       setValidationMessage({
@@ -493,7 +503,9 @@ const PostProcessingApiSettings: React.FC = () => {
                   selectedProviderId &&
                   updatePostProcessModel(selectedProviderId, modelInput)
                 }
-                placeholder={t("settings.postProcessing.api.model.placeholderNoOptions")}
+                placeholder={t(
+                  "settings.postProcessing.api.model.placeholderNoOptions",
+                )}
                 variant="compact"
                 className="flex-1"
               />
@@ -516,7 +528,9 @@ const PostProcessingApiSettings: React.FC = () => {
             onClick={handleTestOpenRouter}
             variant="primary"
             size="sm"
-            disabled={selectedProviderId !== "openrouter" || isTestingOpenRouter}
+            disabled={
+              selectedProviderId !== "openrouter" || isTestingOpenRouter
+            }
           >
             {isTestingOpenRouter
               ? t("settings.openrouterCloud.testing")
