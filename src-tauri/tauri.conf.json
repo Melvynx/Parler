@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Parler",
   "version": "0.7.14",
-  "identifier": "com.melvynx.parler",
+  "identifier": "com.newblacc.parler",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -25,12 +25,12 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["**"],
-          "requireLiteralLeadingDot": false
+          "allow": ["$APPDATA/recordings/**"],
+          "requireLiteralLeadingDot": true
         }
       }
     }
@@ -77,7 +77,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERBQTU3OTUyOTRCQ0VFRTAKUldUZzdyeVVVbm1sMm44Vm0wWG5CL0FTMmdsNEx5Y1hwQVFmV1RNMzVMT3VHSnhITWhoYkcwYjkK",
       "endpoints": [
-        "https://github.com/Melvynx/Parler/releases/latest/download/latest.json"
+        "https://github.com/newblacc/Parler/releases/latest/download/latest.json"
       ]
     }
   }

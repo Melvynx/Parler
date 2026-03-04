@@ -1,11 +1,16 @@
 # Parler
 
-> **This is a personal fork of [cjpais/Handy](https://github.com/cjpais/Handy)** by Melvyn.
+> **This is a personal fork of [cjpais/Handy](https://github.com/cjpais/Handy)** by newblacc.
 > It adds custom features on top of the original Handy app while keeping full compatibility with upstream.
 
 ## Custom Additions
 
 - **Conditional model switching**: Automatically use a different (larger) model when audio recordings exceed a configurable duration threshold (default: 10 seconds). This lets you use a fast lightweight model for short recordings and a more accurate model for longer ones.
+- **Security dependency hardening**: Updated Rust transitive dependencies in `Cargo.lock` to address current `cargo audit` vulnerability findings (`bytes`, `rkyv`, `time`).
+- **Stronger history-path validation**: Hardened audio history file-name validation (including empty-name rejection) and expanded unit test coverage for history/settings command logic.
+- **Project quality gate hook**: Added `.project-hooks/pre-commit` with format, lint, Rust check, and Rust test checks, plus documented usage in the README.
+- **Branding and app identity refresh**: Updated repository and app identity to `newblacc` and regenerated the Tauri app icon set.
+- **Claude Desktop workflow defaults**: Tuned speech output defaults and submit behavior for faster dictation-to-send workflows.
 
 ---
 
@@ -45,7 +50,7 @@ The process is entirely local:
 
 ### Installation
 
-1. Download the latest release from the [releases page](https://github.com/Melvynx/Parler/releases) or the [website](https://handy.computer)
+1. Download the latest release from the [releases page](https://github.com/newblacc/Parler/releases) or the [website](https://handy.computer)
    - **macOS**: Also available via [Homebrew cask](https://formulae.brew.sh/cask/handy): `brew install --cask handy`
 2. Install the application
 3. Launch Parler and grant necessary system permissions (microphone, accessibility)
@@ -55,6 +60,37 @@ The process is entirely local:
 ### Development Setup
 
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
+
+### Quality & Security Checks
+
+Before committing, run the same checks we used in the ship pipeline:
+
+```bash
+# Frontend/JS dependency audit
+bun audit
+
+# Rust dependency advisories
+(cd src-tauri && cargo audit)
+
+# Rust tests
+(cd src-tauri && cargo test)
+
+# Frontend build validation
+bun run build
+```
+
+This repository also includes a local project hook:
+
+```bash
+.project-hooks/pre-commit
+```
+
+It runs formatting checks, frontend lint, Rust compile checks, and Rust tests.
+If you want to use it as your git hook for this repo:
+
+```bash
+git config core.hooksPath .project-hooks
+```
 
 ## Architecture
 
@@ -112,7 +148,7 @@ handy --start-hidden --no-tray
 
 ## Known Issues & Current Limitations
 
-This project is actively being developed and has some [known issues](https://github.com/Melvynx/Parler/issues). We believe in transparency about the current state:
+This project is actively being developed and has some [known issues](https://github.com/newblacc/Parler/issues). We believe in transparency about the current state:
 
 ### Major Issues (Help Wanted)
 
@@ -376,7 +412,7 @@ Parler can auto-discover custom Whisper GGML models placed in the `models` direc
 
 ### How to Contribute
 
-1. **Check existing issues** at [github.com/Melvynx/Parler/issues](https://github.com/Melvynx/Parler/issues)
+1. **Check existing issues** at [github.com/newblacc/Parler/issues](https://github.com/newblacc/Parler/issues)
 2. **Fork the repository** and create a feature branch
 3. **Test thoroughly** on your target platform
 4. **Submit a pull request** with clear description of changes

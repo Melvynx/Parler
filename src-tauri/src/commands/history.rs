@@ -3,6 +3,27 @@ use crate::managers::transcription::TranscriptionManager;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
+fn path_to_string(path: &std::path::Path) -> Result<String, String> {
+    path.to_str()
+        .ok_or_else(|| "Invalid file path".to_string())
+        .map(|s| s.to_string())
+}
+
+fn parse_recording_retention_period(
+    period: &str,
+) -> Result<crate::settings::RecordingRetentionPeriod, String> {
+    use crate::settings::RecordingRetentionPeriod;
+
+    match period {
+        "never" => Ok(RecordingRetentionPeriod::Never),
+        "preserve_limit" => Ok(RecordingRetentionPeriod::PreserveLimit),
+        "days3" => Ok(RecordingRetentionPeriod::Days3),
+        "weeks2" => Ok(RecordingRetentionPeriod::Weeks2),
+        "months3" => Ok(RecordingRetentionPeriod::Months3),
+        _ => Err(format!("Invalid retention period: {}", period)),
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn get_history_entries(
@@ -35,10 +56,10 @@ pub async fn get_audio_file_path(
     history_manager: State<'_, Arc<HistoryManager>>,
     file_name: String,
 ) -> Result<String, String> {
-    let path = history_manager.get_audio_file_path(&file_name);
-    path.to_str()
-        .ok_or_else(|| "Invalid file path".to_string())
-        .map(|s| s.to_string())
+    let path = history_manager
+        .get_audio_file_path(&file_name)
+        .map_err(|e| e.to_string())?;
+    path_to_string(&path)
 }
 
 #[tauri::command]
@@ -87,7 +108,9 @@ pub async fn reprocess_history_entry(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "History entry not found".to_string())?;
 
-    let audio_path = history_manager.get_audio_file_path(&entry.file_name);
+    let audio_path = history_manager
+        .get_audio_file_path(&entry.file_name)
+        .map_err(|e| e.to_string())?;
     if !audio_path.exists() {
         return Err("Audio file not found".to_string());
     }
@@ -124,16 +147,7 @@ pub async fn update_recording_retention_period(
     history_manager: State<'_, Arc<HistoryManager>>,
     period: String,
 ) -> Result<(), String> {
-    use crate::settings::RecordingRetentionPeriod;
-
-    let retention_period = match period.as_str() {
-        "never" => RecordingRetentionPeriod::Never,
-        "preserve_limit" => RecordingRetentionPeriod::PreserveLimit,
-        "days3" => RecordingRetentionPeriod::Days3,
-        "weeks2" => RecordingRetentionPeriod::Weeks2,
-        "months3" => RecordingRetentionPeriod::Months3,
-        _ => return Err(format!("Invalid retention period: {}", period)),
-    };
+    let retention_period = parse_recording_retention_period(period.as_str())?;
 
     let mut settings = crate::settings::get_settings(&app);
     settings.recording_retention_period = retention_period;
@@ -144,4 +158,58 @@ pub async fn update_recording_retention_period(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_recording_retention_period_accepts_valid_values() {
+        assert!(matches!(
+            parse_recording_retention_period("never"),
+            Ok(crate::settings::RecordingRetentionPeriod::Never)
+        ));
+        assert!(matches!(
+            parse_recording_retention_period("preserve_limit"),
+            Ok(crate::settings::RecordingRetentionPeriod::PreserveLimit)
+        ));
+        assert!(matches!(
+            parse_recording_retention_period("days3"),
+            Ok(crate::settings::RecordingRetentionPeriod::Days3)
+        ));
+        assert!(matches!(
+            parse_recording_retention_period("weeks2"),
+            Ok(crate::settings::RecordingRetentionPeriod::Weeks2)
+        ));
+        assert!(matches!(
+            parse_recording_retention_period("months3"),
+            Ok(crate::settings::RecordingRetentionPeriod::Months3)
+        ));
+    }
+
+    #[test]
+    fn parse_recording_retention_period_rejects_invalid_value() {
+        assert_eq!(
+            parse_recording_retention_period("invalid"),
+            Err("Invalid retention period: invalid".to_string())
+        );
+    }
+
+    #[test]
+    fn path_to_string_returns_string_for_valid_utf8_path() {
+        let path = std::path::Path::new("/tmp/file.wav");
+        assert_eq!(path_to_string(path), Ok("/tmp/file.wav".to_string()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn path_to_string_rejects_non_utf8_path() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let non_utf8 = OsString::from_vec(vec![0x66, 0x6f, 0x80]);
+        let path = std::path::PathBuf::from(non_utf8);
+        assert_eq!(path_to_string(&path), Err("Invalid file path".to_string()));
+    }
 }

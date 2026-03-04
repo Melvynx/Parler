@@ -12,6 +12,15 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 #[cfg(target_os = "linux")]
 use crate::utils::{is_kde_wayland, is_wayland};
 
+/// Release common modifier keys before paste/submit.
+/// This avoids shortcut-modifier bleed-through (e.g. Option still held from Option+Space).
+fn release_modifier_keys(enigo: &mut Enigo) {
+    let _ = enigo.key(Key::Shift, Direction::Release);
+    let _ = enigo.key(Key::Alt, Direction::Release);
+    let _ = enigo.key(Key::Control, Direction::Release);
+    let _ = enigo.key(Key::Meta, Direction::Release);
+}
+
 /// Pastes text using the clipboard: saves current content, writes text, sends paste keystroke, restores clipboard.
 fn paste_via_clipboard(
     enigo: &mut Enigo,
@@ -613,6 +622,9 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         .0
         .lock()
         .map_err(|e| format!("Failed to lock Enigo: {}", e))?;
+
+    // Prevent current shortcut modifiers from affecting paste/submit keystrokes.
+    release_modifier_keys(&mut enigo);
 
     // Perform the paste operation
     match paste_method {

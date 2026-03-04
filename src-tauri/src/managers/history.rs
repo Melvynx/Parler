@@ -53,6 +53,31 @@ pub struct HistoryManager {
     db_path: PathBuf,
 }
 
+fn is_valid_audio_file_name(file_name: &str) -> bool {
+    !file_name.is_empty()
+        && !file_name.contains("..")
+        && !file_name.contains('/')
+        && !file_name.contains('\\')
+}
+
+fn get_audio_file_path_from_dir(recordings_dir: &std::path::Path, file_name: &str) -> Result<PathBuf> {
+    if !is_valid_audio_file_name(file_name) {
+        anyhow::bail!("Invalid file name");
+    }
+
+    Ok(recordings_dir.join(file_name))
+}
+
+fn format_timestamp_title(timestamp: i64) -> String {
+    if let Some(utc_datetime) = DateTime::from_timestamp(timestamp, 0) {
+        // Convert UTC to local timezone
+        let local_datetime = utc_datetime.with_timezone(&Local);
+        local_datetime.format("%B %e, %Y - %l:%M%p").to_string()
+    } else {
+        format!("Recording {}", timestamp)
+    }
+}
+
 impl HistoryManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create recordings directory in app data dir
@@ -448,8 +473,8 @@ impl HistoryManager {
         Ok(())
     }
 
-    pub fn get_audio_file_path(&self, file_name: &str) -> PathBuf {
-        self.recordings_dir.join(file_name)
+    pub fn get_audio_file_path(&self, file_name: &str) -> Result<PathBuf> {
+        get_audio_file_path_from_dir(&self.recordings_dir, file_name)
     }
 
     pub fn update_transcription_text(&self, id: i64, new_text: &str) -> Result<()> {
@@ -502,7 +527,7 @@ impl HistoryManager {
         // Get the entry to find the file name
         if let Some(entry) = self.get_entry_by_id(id).await? {
             // Delete the audio file first
-            let file_path = self.get_audio_file_path(&entry.file_name);
+            let file_path = self.get_audio_file_path(&entry.file_name)?;
             if file_path.exists() {
                 if let Err(e) = fs::remove_file(&file_path) {
                     error!("Failed to delete audio file {}: {}", entry.file_name, e);
@@ -528,13 +553,7 @@ impl HistoryManager {
     }
 
     fn format_timestamp_title(&self, timestamp: i64) -> String {
-        if let Some(utc_datetime) = DateTime::from_timestamp(timestamp, 0) {
-            // Convert UTC to local timezone
-            let local_datetime = utc_datetime.with_timezone(&Local);
-            local_datetime.format("%B %e, %Y - %l:%M%p").to_string()
-        } else {
-            format!("Recording {}", timestamp)
-        }
+        format_timestamp_title(timestamp)
     }
 }
 
@@ -600,5 +619,54 @@ mod tests {
         assert_eq!(entry.timestamp, 200);
         assert_eq!(entry.transcription_text, "second");
         assert_eq!(entry.post_processed_text.as_deref(), Some("processed"));
+    }
+
+    #[test]
+    fn validate_audio_file_name_accepts_normal_name() {
+        assert!(is_valid_audio_file_name("handy-123.wav"));
+    }
+
+    #[test]
+    fn validate_audio_file_name_rejects_parent_traversal() {
+        assert!(!is_valid_audio_file_name("../secret.wav"));
+        assert!(!is_valid_audio_file_name("..\\secret.wav"));
+    }
+
+    #[test]
+    fn validate_audio_file_name_rejects_path_separators() {
+        assert!(!is_valid_audio_file_name("folder/file.wav"));
+        assert!(!is_valid_audio_file_name("folder\\file.wav"));
+    }
+
+    #[test]
+    fn validate_audio_file_name_rejects_empty_name() {
+        assert!(!is_valid_audio_file_name(""));
+    }
+
+    #[test]
+    fn get_audio_file_path_from_dir_returns_joined_path_for_valid_filename() {
+        let base = std::path::Path::new("/tmp/recordings");
+        let path = get_audio_file_path_from_dir(base, "handy-123.wav").expect("valid path");
+        assert_eq!(path, base.join("handy-123.wav"));
+    }
+
+    #[test]
+    fn get_audio_file_path_from_dir_rejects_invalid_filename() {
+        let base = std::path::Path::new("/tmp/recordings");
+        let err = get_audio_file_path_from_dir(base, "../secret.wav").expect_err("invalid name");
+        assert_eq!(err.to_string(), "Invalid file name");
+    }
+
+    #[test]
+    fn format_timestamp_title_uses_fallback_when_timestamp_is_invalid() {
+        let title = format_timestamp_title(i64::MAX);
+        assert_eq!(title, format!("Recording {}", i64::MAX));
+    }
+
+    #[test]
+    fn format_timestamp_title_formats_valid_timestamp() {
+        let title = format_timestamp_title(1_700_000_000);
+        assert!(title.contains("2023") || title.contains("2024"));
+        assert!(title.contains(":"));
     }
 }
