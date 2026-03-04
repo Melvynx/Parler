@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Parler",
+  "productName": "Parler Lucas",
   "version": "0.7.14",
-  "identifier": "com.melvynx.parler",
+  "identifier": "com.lucasallard.parler",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Parler",
+        "title": "Parler Lucas",
         "width": 680,
         "height": 570,
         "minWidth": 680,
@@ -69,15 +69,13 @@
         "files": {}
       }
     },
-    "windows": {
-      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d Handy %1"
-    }
+    "windows": {}
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERBQTU3OTUyOTRCQ0VFRTAKUldUZzdyeVVVbm1sMm44Vm0wWG5CL0FTMmdsNEx5Y1hwQVFmV1RNMzVMT3VHSnhITWhoYkcwYjkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0Qzk4QUEzNDNBMkU4MDkKUldRSjZLSkRvNHJKTkU0ZmoySlJCcHdPaEpDWEZWaGRlK3lKZ0JYQXlxNm9QMjlqSFpKcStQR0UK",
       "endpoints": [
-        "https://github.com/Melvynx/Parler/releases/latest/download/latest.json"
+        "https://github.com/REPLACE_WITH_YOUR_GITHUB_USERNAME/REPLACE_WITH_YOUR_REPO/releases/latest/download/latest.json"
       ]
     }
   }

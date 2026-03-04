@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ParlerDev",
-  "identifier": "com.melvynx.parler.dev",
+  "productName": "Parler Lucas Dev",
+  "identifier": "com.lucasallard.parler.dev",
   "app": {
     "windows": [
       {
         "label": "main",
-        "title": "ParlerDev",
+        "title": "Parler Lucas Dev",
         "width": 680,
         "height": 570,
         "minWidth": 680,

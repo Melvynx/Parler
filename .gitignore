@@ -37,3 +37,5 @@ blob-report/
 
 .direnv
 .envrc
+tauri-signing.key
+tauri-signing.key.pub
