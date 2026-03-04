@@ -1,6 +1,6 @@
 # Parler
 
-> **This is a personal fork of [cjpais/Handy](https://github.com/cjpais/Handy)** by Melvyn.
+> **This is a personal fork of [cjpais/Handy](https://github.com/cjpais/Handy)** by newblacc.
 > It adds custom features on top of the original Handy app while keeping full compatibility with upstream.
 
 ## Custom Additions
@@ -9,6 +9,8 @@
 - **Security dependency hardening**: Updated Rust transitive dependencies in `Cargo.lock` to address current `cargo audit` vulnerability findings (`bytes`, `rkyv`, `time`).
 - **Stronger history-path validation**: Hardened audio history file-name validation (including empty-name rejection) and expanded unit test coverage for history/settings command logic.
 - **Project quality gate hook**: Added `.project-hooks/pre-commit` with format, lint, Rust check, and Rust test checks, plus documented usage in the README.
+- **Branding and app identity refresh**: Updated repository and app identity to `newblacc` and regenerated the Tauri app icon set.
+- **Claude Desktop workflow defaults**: Tuned speech output defaults and submit behavior for faster dictation-to-send workflows.
 
 ---
 
