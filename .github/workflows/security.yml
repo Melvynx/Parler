@@ -1,0 +1,98 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  layer1-dependency-audit:
+    name: L1 Dependency Risk
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install audit tools
+        run: cargo install cargo-audit --locked
+      - name: Bun audit
+        run: bun audit --production
+      - name: Cargo audit
+        working-directory: src-tauri
+        run: cargo audit
+
+  layer2-secrets:
+    name: L2 Secrets
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  layer3-sast:
+    name: L3 SAST
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend deps
+        run: bun install --frozen-lockfile
+      - name: Frontend lint
+        run: bun run lint
+      - name: Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  layer4-human-review:
+    name: L4 Human/AI Review Reminder
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reminder
+        run: |
+          echo "Review security-sensitive changes manually (settings, commands, tauri config, updater/network paths)."
+
+  layer5-runtime-checks:
+    name: L5 Runtime Checks Reminder
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reminder
+        run: |
+          echo "Run Playwright/runtime checks when user-facing command behavior changes."
+
+  layer6-supply-chain:
+    name: L6 Supply Chain Integrity
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: Lockfile-enforced install
+        run: bun install --frozen-lockfile
+      - name: Ensure lockfiles unchanged
+        run: |
+          git diff --exit-code -- bun.lock src-tauri/Cargo.lock
+
+  layer7-observability:
+    name: L7 Observability Reminder
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reminder
+        run: |
+          echo "Attach security evidence to PRs (audit outputs, key findings, remediation notes)."
