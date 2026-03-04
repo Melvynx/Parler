@@ -75,7 +75,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0Qzk4QUEzNDNBMkU4MDkKUldRSjZLSkRvNHJKTkU0ZmoySlJCcHdPaEpDWEZWaGRlK3lKZ0JYQXlxNm9QMjlqSFpKcStQR0UK",
       "endpoints": [
-        "https://github.com/REPLACE_WITH_YOUR_GITHUB_USERNAME/REPLACE_WITH_YOUR_REPO/releases/latest/download/latest.json"
+        "https://github.com/lucas-allard/Parlons/releases/latest/download/latest.json"
       ]
     }
   }
