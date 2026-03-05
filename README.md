@@ -79,6 +79,37 @@ The process is entirely local:
 
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
 
+### Quality & Security Checks
+
+Before committing, run the same checks we used in the ship pipeline:
+
+```bash
+# Frontend/JS dependency audit
+bun audit
+
+# Rust dependency advisories
+(cd src-tauri && cargo audit)
+
+# Rust tests
+(cd src-tauri && cargo test)
+
+# Frontend build validation
+bun run build
+```
+
+This repository also includes a local project hook:
+
+```bash
+.project-hooks/pre-commit
+```
+
+It runs formatting checks, frontend lint, Rust compile checks, and Rust tests.
+If you want to use it as your git hook for this repo:
+
+```bash
+git config core.hooksPath .project-hooks
+```
+
 ## Architecture
 
 Parler is built as a Tauri application combining:

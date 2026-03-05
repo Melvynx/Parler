@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "[pre-commit] Running format checks..."
+bun run format:check
+
+echo "[pre-commit] Running frontend lint..."
+bun run lint
+
+echo "[pre-commit] Running Rust checks..."
+cargo check --manifest-path src-tauri/Cargo.toml
+
+echo "[pre-commit] Running Rust tests..."
+cargo test --manifest-path src-tauri/Cargo.toml --quiet
+
+echo "[pre-commit] All checks passed."

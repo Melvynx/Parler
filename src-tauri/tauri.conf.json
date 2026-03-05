@@ -25,12 +25,12 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["**"],
-          "requireLiteralLeadingDot": false
+          "allow": ["$APPDATA/recordings/**"],
+          "requireLiteralLeadingDot": true
         }
       }
     }

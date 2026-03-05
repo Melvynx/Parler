@@ -844,7 +844,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
         // Parse the entire settings object
         match serde_json::from_value::<AppSettings>(settings_value) {
             Ok(mut settings) => {
-                debug!("Found existing settings: {:?}", settings);
+                debug!("Found existing settings");
                 let default_settings = get_default_settings();
                 let mut updated = false;
 
@@ -950,5 +950,76 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn default_post_process_maps_cover_all_providers() {
+        let providers = default_post_process_providers();
+        let api_keys = default_post_process_api_keys();
+        let models = default_post_process_models();
+
+        for provider in providers {
+            assert!(api_keys.contains_key(&provider.id));
+            assert!(models.contains_key(&provider.id));
+            assert_eq!(
+                models.get(&provider.id),
+                Some(&default_model_for_provider(&provider.id))
+            );
+        }
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_adds_missing_values() {
+        let mut settings = get_default_settings();
+        settings.post_process_providers.clear();
+        settings.post_process_api_keys.clear();
+        settings.post_process_models.clear();
+
+        let changed = ensure_post_process_defaults(&mut settings);
+        assert!(changed);
+
+        for provider in default_post_process_providers() {
+            assert!(settings
+                .post_process_providers
+                .iter()
+                .any(|p| p.id == provider.id));
+            assert!(settings.post_process_api_keys.contains_key(&provider.id));
+            assert!(settings.post_process_models.contains_key(&provider.id));
+        }
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_repairs_structured_output_flag() {
+        let mut settings = get_default_settings();
+        let provider = default_post_process_providers()
+            .into_iter()
+            .find(|p| p.id == "openai")
+            .expect("openai provider exists");
+
+        let existing = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == "openai")
+            .expect("openai exists in settings");
+        existing.supports_structured_output = !provider.supports_structured_output;
+
+        let changed = ensure_post_process_defaults(&mut settings);
+        assert!(changed);
+        let updated = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == "openai")
+            .expect("openai exists in settings");
+        assert_eq!(
+            updated.supports_structured_output,
+            provider.supports_structured_output
+        );
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_is_noop_when_settings_are_current() {
+        let mut settings = get_default_settings();
+        let changed = ensure_post_process_defaults(&mut settings);
+        assert!(!changed);
     }
 }
