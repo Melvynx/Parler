@@ -67,7 +67,7 @@ jobs:
       platform: ${{ matrix.platform }}
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
-      sign-binaries: true
+      sign-binaries: false
       asset-prefix: "phraser"
       upload-artifacts: false
       release-id: ${{ needs.create-release.outputs.release-id }}
