@@ -65,6 +65,47 @@ fn update_gtk_layer_shell_anchors(overlay_window: &tauri::webview::WebviewWindow
     });
 }
 
+#[cfg(target_os = "linux")]
+fn update_gtk_layer_shell_monitor(
+    overlay_window: &tauri::webview::WebviewWindow,
+    monitor: &tauri::Monitor,
+) {
+    use gtk::prelude::*;
+    let window_clone = overlay_window.clone();
+    let monitor_name = monitor.name().map(|s| s.to_string());
+
+    let _ = overlay_window.run_on_main_thread(move || {
+        if let Ok(gtk_window) = window_clone.gtk_window() {
+            let display = gtk_window.display();
+
+            // Try to find the matching GDK monitor by name
+            if let Some(target_name) = monitor_name {
+                let n_monitors = display.n_monitors();
+                for i in 0..n_monitors {
+                    if let Some(gdk_monitor) = display.monitor(i) {
+                        if let Some(model) = gdk_monitor.model() {
+                            if target_name.contains(model.as_str()) {
+                                gtk_window.set_monitor(&gdk_monitor);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: use monitor at current pointer position
+            if let Some(seat) = display.default_seat() {
+                if let Some(pointer) = seat.pointer() {
+                    let (_, x, y) = pointer.position();
+                    if let Some(monitor) = display.monitor_at_point(x, y) {
+                        gtk_window.set_monitor(&monitor);
+                    }
+                }
+            }
+        }
+    });
+}
+
 /// Initializes GTK layer shell for Linux overlay window
 /// Returns true if layer shell was successfully initialized, false otherwise
 #[cfg(target_os = "linux")]
@@ -230,7 +271,7 @@ fn get_monitor_with_cursor(app_handle: &AppHandle) -> Option<tauri::Monitor> {
     get_fallback_monitor(app_handle, &monitors)
 }
 
-fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
+fn calculate_overlay_position(app_handle: &AppHandle) -> Option<((f64, f64), tauri::Monitor)> {
     if let Some(monitor) = get_monitor_with_cursor(app_handle) {
         let scale = monitor.scale_factor();
         let monitor_x = monitor.position().x as f64 / scale;
@@ -284,7 +325,7 @@ fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
             x, y, scale, area_x, area_y, area_w, area_h, work_area_valid
         );
 
-        return Some((x, y));
+        return Some(((x, y), monitor));
     }
     None
 }
@@ -292,7 +333,8 @@ fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
 /// Creates the recording overlay window and keeps it hidden by default
 #[cfg(not(target_os = "macos"))]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
-    let position = calculate_overlay_position(app_handle);
+    let position_data = calculate_overlay_position(app_handle);
+    let position = position_data.as_ref().map(|(p, _)| *p);
 
     // On Linux (Wayland), monitor detection often fails, but we don't need exact coordinates
     // for Layer Shell as we use anchors. On other platforms, we require a position.
@@ -349,7 +391,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 /// Creates the recording overlay panel and keeps it hidden by default (macOS)
 #[cfg(target_os = "macos")]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
-    if let Some((x, y)) = calculate_overlay_position(app_handle) {
+    if let Some(((x, y), _)) = calculate_overlay_position(app_handle) {
         // PanelBuilder creates a Tauri window then converts it to NSPanel.
         // The window remains registered, so get_webview_window() still works.
         match PanelBuilder::<_, RecordingOverlayPanel>::new(app_handle, "recording_overlay")
@@ -419,12 +461,17 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let position_data = calculate_overlay_position(app_handle);
+
         #[cfg(target_os = "linux")]
         {
             update_gtk_layer_shell_anchors(&overlay_window);
+            if let Some((_, monitor)) = &position_data {
+                update_gtk_layer_shell_monitor(&overlay_window, monitor);
+            }
         }
 
-        if let Some((x, y)) = calculate_overlay_position(app_handle) {
+        if let Some(((x, y), _)) = position_data {
             let _ = overlay_window
                 .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
         }

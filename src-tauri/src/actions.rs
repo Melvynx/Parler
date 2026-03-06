@@ -62,7 +62,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => provider,
         None => {
-            debug!("Post-processing enabled but no provider is selected");
+            warn!("Post-processing enabled but no provider is selected");
             return None;
         }
     };
@@ -74,7 +74,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         .unwrap_or_default();
 
     if model.trim().is_empty() {
-        debug!(
+        warn!(
             "Post-processing skipped because provider '{}' has no model configured",
             provider.id
         );
@@ -84,7 +84,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
     let selected_prompt_id = match &settings.post_process_selected_prompt_id {
         Some(id) => id.clone(),
         None => {
-            debug!("Post-processing skipped because no prompt is selected");
+            warn!("Post-processing skipped because no prompt is selected");
             return None;
         }
     };
@@ -96,7 +96,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
     {
         Some(prompt) => prompt.prompt.clone(),
         None => {
-            debug!(
+            warn!(
                 "Post-processing skipped because prompt '{}' was not found",
                 selected_prompt_id
             );
@@ -105,7 +105,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
     };
 
     if prompt.trim().is_empty() {
-        debug!("Post-processing skipped because the selected prompt is empty");
+        warn!("Post-processing skipped because the selected prompt is empty");
         return None;
     }
 
@@ -618,7 +618,15 @@ impl ShortcutAction for TranscribeAction {
                                 final_text = converted_text;
                             }
 
-                            let selected_action = selected_action_key.and_then(|key| {
+                            let mut effective_action_key = selected_action_key;
+
+                            // If no shortcut action was triggered, but post-processing is enabled globally,
+                            // use the default post-process action key if one is set.
+                            if effective_action_key.is_none() && settings.post_process_enabled {
+                                effective_action_key = settings.default_post_process_action_key;
+                            }
+
+                            let selected_action = effective_action_key.and_then(|key| {
                                 settings
                                     .post_process_actions
                                     .iter()

@@ -497,12 +497,14 @@ impl TranscriptionManager {
                 // Use block_in_place to safely run async code from a tokio worker thread.
                 // Handle::block_on() panics if called directly from an async context,
                 // so block_in_place tells tokio to move its work off this thread first.
+                let selected_language = settings.selected_language.clone();
                 let result = tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(
                         crate::openrouter_client::transcribe_audio(
                             &api_key,
                             &openrouter_model,
                             &audio,
+                            &selected_language,
                         ),
                     )
                 })?;

@@ -16,6 +16,7 @@
     "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
     "format:frontend": "prettier --write .",
     "format:backend": "cd src-tauri && cargo fmt",
+    "audio:probe": "cargo run --manifest-path src-tauri/Cargo.toml --bin audio-probe",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts"

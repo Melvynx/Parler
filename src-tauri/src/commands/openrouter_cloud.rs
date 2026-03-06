@@ -108,9 +108,15 @@ pub async fn validate_openrouter_cloud_transcription(app: AppHandle) -> Result<S
 
     // 500ms of silence at 16kHz for an end-to-end request validation.
     let probe_audio = vec![0.0f32; 8_000];
-    let transcript = crate::openrouter_client::transcribe_audio(&api_key, &model, &probe_audio)
-        .await
-        .map_err(|e| format!("OpenRouter cloud validation failed: {}", e))?;
+    let selected_language = settings.selected_language.clone();
+    let transcript = crate::openrouter_client::transcribe_audio(
+        &api_key,
+        &model,
+        &probe_audio,
+        &selected_language,
+    )
+    .await
+    .map_err(|e| format!("OpenRouter cloud validation failed: {}", e))?;
 
     Ok(transcript)
 }

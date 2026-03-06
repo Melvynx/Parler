@@ -145,6 +145,21 @@ For reliable text input on Linux, install the appropriate tool for your display 
 
 Without these tools, Parler falls back to enigo which may have limited compatibility, especially on Wayland.
 
+**Audio Input Probe (No GNOME Required):**
+
+If you want to validate microphone capture without desktop shortcuts or GNOME settings, run:
+
+```bash
+cargo run --manifest-path src-tauri/Cargo.toml --bin audio-probe
+```
+
+This probe uses the same Linux audio path as the app (CPAL + ALSA), lists input devices, and attempts a real input stream.
+
+If it reports `0` devices:
+
+- Verify microphone passthrough if you're in a VM/remote desktop
+- Ensure ALSA bridge plugins are installed (`pipewire-alsa` and/or `alsa-plugins`, depending on distro)
+
 **Other Notes:**
 
 - **Runtime library dependency (`libgtk-layer-shell.so.0`)**:

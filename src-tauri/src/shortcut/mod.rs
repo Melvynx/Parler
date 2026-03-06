@@ -605,6 +605,18 @@ pub fn change_overlay_position_setting(app: AppHandle, position: String) -> Resu
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_default_post_process_action_key_setting(
+    app: AppHandle,
+    key: Option<u8>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.default_post_process_action_key = key;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.debug_mode = enabled;
@@ -1082,6 +1094,10 @@ pub fn delete_post_process_action(app: AppHandle, key: u8) -> Result<(), String>
 
     if settings.post_process_actions.len() == original_len {
         return Err(format!("Action with key {} not found", key));
+    }
+
+    if settings.default_post_process_action_key == Some(key) {
+        settings.default_post_process_action_key = None;
     }
 
     settings::write_settings(&app, settings);

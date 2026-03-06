@@ -96,14 +96,29 @@ fn parse_message_content(value: &serde_json::Value) -> Option<String> {
     }
 }
 
-fn build_transcription_request(model: &str, audio_base64: String) -> ChatCompletionRequest {
+fn build_transcription_prompt(language: &str) -> String {
+    if language == "auto" || language.is_empty() {
+        "Transcribe this audio exactly as spoken. Preserve the original language of the speaker. Do not translate. Return only the transcript text.".to_string()
+    } else {
+        format!(
+            "Transcribe this audio in {}. Do not translate to another language. Return only the transcript text.",
+            language
+        )
+    }
+}
+
+fn build_transcription_request(
+    model: &str,
+    audio_base64: String,
+    language: &str,
+) -> ChatCompletionRequest {
     ChatCompletionRequest {
         model: model.to_string(),
         messages: vec![ChatMessage {
             role: "user".to_string(),
             content: vec![
                 UserContentPart::Text {
-                    text: "Transcribe this audio and return only the transcript text.".to_string(),
+                    text: build_transcription_prompt(language),
                 },
                 UserContentPart::InputAudio {
                     input_audio: InputAudio {
@@ -132,7 +147,12 @@ fn maybe_model_incompatible_error(model: &str, error_body: &str) -> Option<Strin
     None
 }
 
-pub async fn transcribe_audio(api_key: &str, model: &str, audio_samples: &[f32]) -> Result<String> {
+pub async fn transcribe_audio(
+    api_key: &str,
+    model: &str,
+    audio_samples: &[f32],
+    language: &str,
+) -> Result<String> {
     if api_key.trim().is_empty() {
         return Err(anyhow::anyhow!(
             "OpenRouter cloud API key is not configured"
@@ -145,7 +165,7 @@ pub async fn transcribe_audio(api_key: &str, model: &str, audio_samples: &[f32])
     let wav_bytes = encode_samples_to_wav(audio_samples)?;
     let audio_base64 = base64::engine::general_purpose::STANDARD.encode(&wav_bytes);
 
-    let request = build_transcription_request(model, audio_base64);
+    let request = build_transcription_request(model, audio_base64, language);
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -239,7 +259,7 @@ mod tests {
     #[test]
     fn builds_transcription_request_with_audio_part() {
         let request =
-            build_transcription_request("openai/gpt-4o-mini-transcribe", "abc".to_string());
+            build_transcription_request("openai/gpt-4o-mini-transcribe", "abc".to_string(), "auto");
         assert_eq!(request.model, "openai/gpt-4o-mini-transcribe");
         assert_eq!(request.messages.len(), 1);
         assert_eq!(request.messages[0].content.len(), 2);
@@ -250,6 +270,20 @@ mod tests {
             }
             _ => panic!("Expected input_audio content part"),
         }
+    }
+
+    #[test]
+    fn auto_language_preserves_original() {
+        let prompt = build_transcription_prompt("auto");
+        assert!(prompt.contains("Preserve the original language"));
+        assert!(prompt.contains("Do not translate"));
+    }
+
+    #[test]
+    fn specific_language_in_prompt() {
+        let prompt = build_transcription_prompt("fr");
+        assert!(prompt.contains("fr"));
+        assert!(prompt.contains("Do not translate"));
     }
 
     #[test]

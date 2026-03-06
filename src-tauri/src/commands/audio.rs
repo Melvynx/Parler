@@ -8,6 +8,22 @@ use specta::Type;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
+fn with_linux_audio_hint(message: String) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        format!(
+            "{} {}",
+            message,
+            "Linux hint: no microphone was found through ALSA. If you run in a VM/remote desktop, enable microphone passthrough. On desktop Linux, make sure ALSA bridge plugins are installed (for example pipewire-alsa/alsa-plugins). You can run `cargo run --manifest-path src-tauri/Cargo.toml --bin audio-probe` to diagnose from terminal."
+        )
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        message
+    }
+}
+
 #[derive(Serialize, Type)]
 pub struct CustomSounds {
     start: bool,
@@ -69,8 +85,14 @@ pub fn get_microphone_mode(app: AppHandle) -> Result<bool, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
-    let devices =
-        list_input_devices().map_err(|e| format!("Failed to list audio devices: {}", e))?;
+    let devices = list_input_devices()
+        .map_err(|e| with_linux_audio_hint(format!("Failed to list audio devices: {}", e)))?;
+
+    if devices.is_empty() {
+        return Err(with_linux_audio_hint(
+            "No microphone devices were detected.".to_string(),
+        ));
+    }
 
     let mut result = vec![AudioDevice {
         index: "default".to_string(),

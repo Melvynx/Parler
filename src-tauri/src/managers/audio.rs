@@ -7,6 +7,22 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tauri::Manager;
 
+fn with_linux_audio_hint(message: String) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        format!(
+            "{} {}",
+            message,
+            "Linux hint: no microphone was found through ALSA. If you run in a VM/remote desktop, enable microphone passthrough. On desktop Linux, make sure ALSA bridge plugins are installed (for example pipewire-alsa/alsa-plugins). You can run `cargo run --manifest-path src-tauri/Cargo.toml --bin audio-probe` to diagnose from terminal."
+        )
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        message
+    }
+}
+
 fn set_mute(mute: bool) {
     // Expected behavior:
     // - Windows: works on most systems using standard audio drivers.
@@ -269,8 +285,12 @@ impl AudioRecordingManager {
         let selected_device = self.get_effective_microphone_device(&settings);
 
         if let Some(rec) = recorder_opt.as_mut() {
-            rec.open(selected_device)
-                .map_err(|e| anyhow::anyhow!("Failed to open recorder: {}", e))?;
+            rec.open(selected_device).map_err(|e| {
+                anyhow::anyhow!(with_linux_audio_hint(format!(
+                    "Failed to open recorder: {}",
+                    e
+                )))
+            })?;
         }
 
         *open_flag = true;

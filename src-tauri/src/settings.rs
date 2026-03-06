@@ -390,6 +390,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub post_process_actions: Vec<PostProcessAction>,
     #[serde(default)]
+    pub default_post_process_action_key: Option<u8>,
+    #[serde(default)]
     pub saved_processing_models: Vec<SavedProcessingModel>,
 }
 
@@ -698,6 +700,30 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         changed = true;
     }
 
+    if let Some(default_key) = settings.default_post_process_action_key {
+        let key_exists = settings
+            .post_process_actions
+            .iter()
+            .any(|action| action.key == default_key);
+        if !key_exists {
+            settings.default_post_process_action_key = None;
+            changed = true;
+        }
+    }
+
+    // Auto-select the first prompt if none is selected and prompts exist
+    if settings.post_process_selected_prompt_id.is_none()
+        && !settings.post_process_prompts.is_empty()
+    {
+        let first_prompt_id = settings.post_process_prompts[0].id.clone();
+        debug!(
+            "Auto-selecting first post-process prompt: '{}'",
+            first_prompt_id
+        );
+        settings.post_process_selected_prompt_id = Some(first_prompt_id);
+        changed = true;
+    }
+
     changed
 }
 
@@ -804,6 +830,7 @@ pub fn get_default_settings() -> AppSettings {
         openrouter_cloud_api_key: None,
         openrouter_cloud_model: default_openrouter_cloud_model(),
         post_process_actions: Vec::new(),
+        default_post_process_action_key: None,
         saved_processing_models: Vec::new(),
     }
 }
@@ -1004,5 +1031,16 @@ mod tests {
             Some("legacy-key")
         );
         assert_eq!(settings.openrouter_cloud_model, "legacy-model");
+    }
+
+    #[test]
+    fn clears_default_post_process_action_key_when_action_is_missing() {
+        let mut settings = get_default_settings();
+        settings.default_post_process_action_key = Some(3);
+
+        let changed = ensure_post_process_defaults(&mut settings);
+
+        assert!(changed);
+        assert_eq!(settings.default_post_process_action_key, None);
     }
 }

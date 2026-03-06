@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { AppSettings as Settings, AudioDevice } from "@/bindings";
 import { commands } from "@/bindings";
+import { toast } from "sonner";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -133,6 +134,8 @@ const settingUpdaters: {
   app_language: (value) => commands.changeAppLanguageSetting(value as string),
   experimental_enabled: (value) =>
     commands.changeExperimentalEnabledSetting(value as boolean),
+  default_post_process_action_key: (value) =>
+    commands.changeDefaultPostProcessActionKeySetting(value as number | null),
   show_tray_icon: (value) =>
     commands.changeShowTrayIconSetting(value as boolean),
   long_audio_model: (value) =>
@@ -210,11 +213,19 @@ export const useSettingsStore = create<SettingsStore>()(
           ];
           set({ audioDevices: devicesWithDefault });
         } else {
+          const message =
+            typeof result.error === "string"
+              ? result.error
+              : "Failed to load audio devices";
+          console.error("Failed to load audio devices:", message);
           set({ audioDevices: [DEFAULT_AUDIO_DEVICE] });
+          toast.error(message);
         }
       } catch (error) {
+        const message = "Failed to load audio devices";
         console.error("Failed to load audio devices:", error);
         set({ audioDevices: [DEFAULT_AUDIO_DEVICE] });
+        toast.error(message);
       }
     },
 
