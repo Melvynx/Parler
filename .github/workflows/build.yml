@@ -213,6 +213,10 @@ jobs:
       - name: Configure Windows code signing
         if: contains(inputs.platform, 'windows') && inputs.sign-binaries && steps.signing-check.outputs.has-azure-signing == 'true'
         shell: bash
+        env:
+          SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          SIGNING_CERTIFICATE: ${{ secrets.AZURE_SIGNING_CERTIFICATE }}
         run: |
           # Resolve the full path to trusted-signing-cli to avoid PATH issues during Tauri bundling
           TSC_PATH=$(which trusted-signing-cli || command -v trusted-signing-cli)
@@ -222,8 +226,13 @@ jobs:
           fi
           echo "trusted-signing-cli found at: $TSC_PATH"
 
+          # Use secrets if available, otherwise fall back to upstream defaults
+          ENDPOINT="${SIGNING_ENDPOINT:-https://eus.codesigning.azure.net/}"
+          ACCOUNT="${SIGNING_ACCOUNT:-CJ-Signing}"
+          CERTIFICATE="${SIGNING_CERTIFICATE:-cjpais-dev}"
+
           # Inject signCommand with full path into tauri.conf.json
-          SIGN_CMD="$TSC_PATH -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d Parler %1"
+          SIGN_CMD="$TSC_PATH -e $ENDPOINT -a $ACCOUNT -c $CERTIFICATE -d Parler %1"
           export SIGN_CMD
           node -e 'var fs=require("fs"),c=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8"));if(!c.bundle)c.bundle={};if(!c.bundle.windows)c.bundle.windows={};c.bundle.windows.signCommand=process.env.SIGN_CMD;fs.writeFileSync("src-tauri/tauri.conf.json",JSON.stringify(c,null,2)+"\n");console.log("signCommand configured:",c.bundle.windows.signCommand);'
 
