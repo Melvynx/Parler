@@ -396,6 +396,42 @@ mod tests {
         assert!(!is_no_input_device_error("permission denied"));
         assert!(!is_no_input_device_error("device not found"));
     }
+
+    #[test]
+    fn shutdown_command_exits_without_waiting_for_samples() {
+        use super::{run_consumer, AudioChunk, Cmd};
+        use std::sync::atomic::AtomicBool;
+        use std::sync::Arc;
+
+        let (sample_tx, sample_rx) = std::sync::mpsc::channel::<AudioChunk>();
+        let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<Cmd>();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+
+        let worker = std::thread::spawn(move || {
+            run_consumer(16_000, None, sample_rx, cmd_rx, None, stop_flag);
+        });
+
+        // Queue shutdown first so it's already on cmd_rx when the consumer
+        // checks after processing the dummy sample (eliminates race).
+        cmd_tx.send(Cmd::Shutdown).expect("send shutdown");
+        // Unblock the consumer loop which blocks on sample_rx.recv() before
+        // non-blockingly checking cmd_rx.
+        sample_tx
+            .send(AudioChunk::Samples(vec![0.0; 480]))
+            .expect("send dummy sample");
+
+        let (joined_tx, joined_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = worker.join();
+            let _ = joined_tx.send(());
+        });
+
+        joined_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("worker should exit after shutdown");
+
+        drop(sample_tx);
+    }
 }
 
 fn run_consumer(
@@ -555,36 +591,5 @@ fn run_consumer(
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{run_consumer, Cmd};
-    use std::sync::mpsc;
-    use std::time::Duration;
-
-    #[test]
-    fn shutdown_command_exits_without_waiting_for_samples() {
-        let (sample_tx, sample_rx) = mpsc::channel::<Vec<f32>>();
-        let (cmd_tx, cmd_rx) = mpsc::channel::<Cmd>();
-
-        let worker = std::thread::spawn(move || {
-            run_consumer(16_000, None, sample_rx, cmd_rx, None, None);
-        });
-
-        cmd_tx.send(Cmd::Shutdown).expect("send shutdown");
-
-        let (joined_tx, joined_rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let _ = worker.join();
-            let _ = joined_tx.send(());
-        });
-
-        joined_rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("worker should exit after shutdown");
-
-        drop(sample_tx);
     }
 }
