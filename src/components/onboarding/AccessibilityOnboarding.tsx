@@ -2,13 +2,16 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { platform } from "@tauri-apps/plugin-os";
 import {
-  checkAccessibilityPermission,
   requestAccessibilityPermission,
   checkMicrophonePermission,
   requestMicrophonePermission,
 } from "tauri-plugin-macos-permissions-api";
 import { toast } from "sonner";
 import { commands } from "@/bindings";
+import {
+  checkMacOSAccessibilityReady,
+  initializeMacOSAccessibilitySystems,
+} from "@/lib/permissions";
 import { useSettingsStore } from "@/stores/settingsStore";
 import ParlerTextLogo from "../icons/ParlerTextLogo";
 import { Keyboard, Mic, Check, Loader2 } from "lucide-react";
@@ -44,7 +47,8 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCountRef = useRef<number>(0);
-  const MAX_POLLING_ERRORS = 3;
+  const enigoInitializedRef = useRef<boolean>(false);
+  const MAX_POLLING_ERRORS = 10;
 
   const isMacOS = permissionPlatform === "macos";
   const isWindows = permissionPlatform === "windows";
@@ -96,18 +100,16 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
       if (nextPlatform === "macos") {
         try {
           const [accessibilityGranted, microphoneGranted] = await Promise.all([
-            checkAccessibilityPermission(),
+            checkMacOSAccessibilityReady(),
             checkMicrophonePermission(),
           ]);
 
-          // If accessibility is granted, initialize Enigo and shortcuts
-          if (accessibilityGranted) {
+          if (accessibilityGranted && !enigoInitializedRef.current) {
+            enigoInitializedRef.current = true;
             try {
-              await Promise.all([
-                commands.initializeEnigo(),
-                commands.initializeShortcuts(),
-              ]);
+              await initializeMacOSAccessibilitySystems();
             } catch (e) {
+              enigoInitializedRef.current = false;
               console.warn("Failed to initialize after permission grant:", e);
             }
           }
@@ -161,6 +163,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   // Polling for permissions after user clicks a button
   const startPolling = useCallback(() => {
     if (pollingRef.current || permissionPlatform === null) return;
+    errorCountRef.current = 0;
 
     pollingRef.current = setInterval(async () => {
       try {
@@ -182,33 +185,42 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           return;
         }
 
-        const [accessibilityGranted, microphoneGranted] = await Promise.all([
-          checkAccessibilityPermission(),
-          checkMicrophonePermission(),
-        ]);
+        let accessibilityGranted = false;
+        let microphoneGranted = false;
 
-        setPermissions((prev) => {
-          const newState = { ...prev };
+        try {
+          accessibilityGranted = await checkMacOSAccessibilityReady();
+        } catch (e) {
+          console.warn("Failed to check accessibility permission:", e);
+        }
 
-          if (accessibilityGranted && prev.accessibility !== "granted") {
-            newState.accessibility = "granted";
-            // Initialize Enigo and shortcuts when accessibility is granted
-            Promise.all([
-              commands.initializeEnigo(),
-              commands.initializeShortcuts(),
-            ]).catch((e) => {
+        try {
+          microphoneGranted = await checkMicrophonePermission();
+        } catch (e) {
+          console.warn("Failed to check microphone permission:", e);
+        }
+
+        if (accessibilityGranted) {
+          setPermissions((prev) => {
+            if (prev.accessibility === "granted") return prev;
+            return { ...prev, accessibility: "granted" };
+          });
+          if (!enigoInitializedRef.current) {
+            enigoInitializedRef.current = true;
+            initializeMacOSAccessibilitySystems().catch((e) => {
+              enigoInitializedRef.current = false;
               console.warn("Failed to initialize after permission grant:", e);
             });
           }
+        }
 
-          if (microphoneGranted && prev.microphone !== "granted") {
-            newState.microphone = "granted";
-          }
+        if (microphoneGranted) {
+          setPermissions((prev) => {
+            if (prev.microphone === "granted") return prev;
+            return { ...prev, microphone: "granted" };
+          });
+        }
 
-          return newState;
-        });
-
-        // If both granted, stop polling, refresh audio devices, and proceed
         if (accessibilityGranted && microphoneGranted) {
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
@@ -217,18 +229,22 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           await completeOnboarding();
         }
 
-        // Reset error count on success
         errorCountRef.current = 0;
       } catch (error) {
         console.error("Error checking permissions:", error);
         errorCountRef.current += 1;
 
         if (errorCountRef.current >= MAX_POLLING_ERRORS) {
-          // Stop polling after too many consecutive errors
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
+          setPermissions((prev) => ({
+            accessibility:
+              prev.accessibility === "waiting" ? "needed" : prev.accessibility,
+            microphone:
+              prev.microphone === "waiting" ? "needed" : prev.microphone,
+          }));
           toast.error(t("onboarding.permissions.errors.checkFailed"));
         }
       }
@@ -396,6 +412,13 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
             </div>
           </div>
         )}
+
+        <button
+          onClick={onComplete}
+          className="text-sm text-text/40 hover:text-text/60 transition-colors mt-2"
+        >
+          {t("onboarding.permissions.skip")}
+        </button>
       </div>
     </div>
   );
