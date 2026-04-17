@@ -928,7 +928,25 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         default_settings
     };
 
+    let mut updated = false;
+
+    // Backfill new default bindings that the user's stored settings don't know
+    // about yet (e.g. new bindings added in later versions). Without this, the
+    // UI renders undefined bindings using the generic fallback label.
+    let default_bindings = get_default_settings().bindings;
+    for (key, value) in default_bindings {
+        if !settings.bindings.contains_key(&key) {
+            debug!("Adding missing binding: {}", key);
+            settings.bindings.insert(key, value);
+            updated = true;
+        }
+    }
+
     if ensure_post_process_defaults(&mut settings) {
+        updated = true;
+    }
+
+    if updated {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 
