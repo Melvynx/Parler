@@ -391,13 +391,15 @@ jobs:
         shell: bash
         run: |
           APP=$(find src-tauri/target -name "*.app" -type d | head -1)
+          BIN=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f -perm +111 | head -1)
+          echo "Inspecting binary: $BIN"
           echo "=== Frameworks contents ==="
           ls -la "$APP/Contents/Frameworks/" | grep onnx || true
           echo "=== Binary linked libs ==="
-          otool -L "$APP/Contents/MacOS/handy" | grep onnx || true
+          otool -L "$BIN" | grep onnx || true
           echo "=== Checking all @rpath deps are satisfied ==="
           # Extract every @rpath lib the binary needs
-          otool -L "$APP/Contents/MacOS/handy" | grep '@rpath/' | awk '{print $1}' | while read dep; do
+          otool -L "$BIN" | grep '@rpath/' | awk '{print $1}' | while read dep; do
             libname=$(basename "$dep")
             if [ ! -f "$APP/Contents/Frameworks/$libname" ]; then
               echo "MISSING: $libname not found in Frameworks/"
