@@ -2,8 +2,10 @@ name: "Release"
 
 on: workflow_dispatch
 
+# Shared with Main Branch Build so dispatching a release cancels the duplicate
+# push build, and so two release dispatches on the same ref collapse to one.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: parler-macos-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

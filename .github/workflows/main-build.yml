@@ -10,8 +10,10 @@ on:
   push:
     branches: [main]
 
+# Shares the concurrency group with the Release workflow so a manual release
+# dispatch supersedes the push build (same macOS matrix, no point running both).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: parler-macos-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
