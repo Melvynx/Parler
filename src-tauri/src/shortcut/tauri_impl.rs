@@ -202,6 +202,7 @@ pub fn unregister_cancel_shortcut(app: &AppHandle) {
 }
 
 /// Register an action shortcut (ctrl+digit, called when recording starts)
+#[allow(dead_code)]
 pub fn register_action_shortcut(app: &AppHandle, binding: ShortcutBinding) {
     #[cfg(target_os = "linux")]
     {
@@ -221,6 +222,7 @@ pub fn register_action_shortcut(app: &AppHandle, binding: ShortcutBinding) {
 }
 
 /// Unregister an action shortcut (called when recording stops)
+#[allow(dead_code)]
 pub fn unregister_action_shortcut(app: &AppHandle, binding: ShortcutBinding) {
     #[cfg(target_os = "linux")]
     {

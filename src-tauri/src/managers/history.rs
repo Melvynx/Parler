@@ -585,6 +585,7 @@ impl HistoryManager {
         self.recordings_dir.join(file_name)
     }
 
+    #[allow(dead_code)]
     pub fn update_transcription_text(
         &self,
         id: i64,

@@ -483,6 +483,7 @@ fn run_consumer(
         }
     }
 
+    #[allow(dead_code)]
     fn handle_command(
         cmd: Cmd,
         sample_rx: &mpsc::Receiver<Vec<f32>>,

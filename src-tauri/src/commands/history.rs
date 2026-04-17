@@ -124,6 +124,7 @@ pub async fn update_history_limit(
     Ok(())
 }
 
+#[allow(dead_code)]
 #[tauri::command]
 #[specta::specta]
 pub async fn reprocess_history_entry(

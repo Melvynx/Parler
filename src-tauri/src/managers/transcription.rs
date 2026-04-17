@@ -427,6 +427,7 @@ impl TranscriptionManager {
         current_model.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_current_model_name(&self) -> Option<String> {
         let model_id = self.get_current_model()?;
         self.model_manager
