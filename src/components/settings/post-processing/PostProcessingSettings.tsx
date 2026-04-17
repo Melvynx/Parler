@@ -1,360 +1,402 @@
-import React, { useEffect, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { commands } from "@/bindings";
-
+import { useSettings } from "@/hooks/useSettings";
 import {
   Dropdown,
   SettingContainer,
   SettingsGroup,
   Textarea,
 } from "@/components/ui";
-import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
-import { useSettings } from "../../../hooks/useSettings";
+import { Button } from "../../ui/Button";
 
-const PostProcessingActionsComponent: React.FC = () => {
+export const PostProcessingSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { getSetting, refreshSettings } = useSettings();
-  const [editingAction, setEditingAction] = useState<{
-    key: number;
-    originalKey?: number;
-    name: string;
-    prompt: string;
-    savedModelId: string;
-    isNew: boolean;
-  } | null>(null);
+  const {
+    settings,
+    refreshSettings,
+    postProcessModelOptions,
+    setPostProcessProvider,
+    updatePostProcessBaseUrl,
+    updatePostProcessApiKey,
+    updatePostProcessModel,
+    fetchPostProcessModels,
+  } = useSettings();
 
-  const actions = getSetting("post_process_actions") || [];
-  const savedModels = getSetting("saved_processing_models") || [];
+  const providers = settings?.post_process_providers ?? [];
+  const selectedProviderId = settings?.post_process_provider_id ?? "";
+  const selectedProvider =
+    providers.find((provider) => provider.id === selectedProviderId) ?? null;
+  const selectedPromptId = settings?.post_process_selected_prompt_id ?? null;
+  const prompts = settings?.post_process_prompts ?? [];
 
-  const modelDropdownOptions = [
-    {
-      value: "__default__",
-      label: t("settings.postProcessing.actions.defaultModel"),
-    },
-    ...savedModels.map((m) => ({
-      value: m.id,
-      label: m.label,
-    })),
-  ];
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [baseUrlInput, setBaseUrlInput] = useState("");
+  const [modelInput, setModelInput] = useState("");
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [promptName, setPromptName] = useState("");
+  const [promptText, setPromptText] = useState("");
 
-  const usedKeys = new Set(actions.map((a) => a.key));
-  const nextAvailableKey = Array.from({ length: 9 }, (_, i) => i + 1).find(
-    (k) => !usedKeys.has(k),
+  const currentApiKey =
+    settings?.post_process_api_keys?.[selectedProviderId] ?? "";
+  const currentModel =
+    settings?.post_process_models?.[selectedProviderId] ?? "";
+  const availableModels = postProcessModelOptions[selectedProviderId] ?? [];
+
+  const providerOptions = useMemo(
+    () =>
+      providers.map((provider) => ({
+        value: provider.id,
+        label: provider.label,
+      })),
+    [providers],
+  );
+  const promptOptions = useMemo(
+    () => [
+      ...prompts.map((prompt) => ({ value: prompt.id, label: prompt.name })),
+      {
+        value: "__new__",
+        label: t("settings.postProcessing.prompts.createNew"),
+      },
+    ],
+    [prompts, t],
+  );
+  const modelOptions = useMemo(
+    () => availableModels.map((model) => ({ value: model, label: model })),
+    [availableModels],
   );
 
-  const availableKeysForEditing = Array.from({ length: 9 }, (_, i) => i + 1)
-    .filter(
-      (k) =>
-        !usedKeys.has(k) ||
-        k === editingAction?.key ||
-        k === editingAction?.originalKey,
-    )
-    .map((k) => ({ value: String(k), label: String(k) }));
+  const activePrompt =
+    prompts.find((prompt) => prompt.id === editingPromptId) ?? null;
 
-  const handleStartCreate = () => {
-    if (!nextAvailableKey) return;
-    setEditingAction({
-      key: nextAvailableKey,
-      name: "",
-      prompt: "",
-      savedModelId: "",
-      isNew: true,
-    });
-  };
+  useEffect(() => {
+    setApiKeyInput(currentApiKey);
+  }, [currentApiKey, selectedProviderId]);
 
-  const handleStartEdit = (action: {
-    key: number;
-    name: string;
-    prompt: string;
-    model?: string | null;
-    provider_id?: string | null;
-  }) => {
-    let savedModelId = "";
-    if (action.provider_id && action.model) {
-      const id = `${action.provider_id}:${action.model}`;
-      if (savedModels.some((m) => m.id === id)) {
-        savedModelId = id;
-      }
-    }
-    setEditingAction({
-      key: action.key,
-      originalKey: action.key,
-      name: action.name,
-      prompt: action.prompt,
-      savedModelId,
-      isNew: false,
-    });
-  };
+  useEffect(() => {
+    setBaseUrlInput(selectedProvider?.base_url ?? "");
+  }, [selectedProvider?.base_url]);
 
-  const handleSave = async () => {
-    if (
-      !editingAction ||
-      !editingAction.name.trim() ||
-      !editingAction.prompt.trim()
-    )
+  useEffect(() => {
+    setModelInput(currentModel);
+  }, [currentModel, selectedProviderId]);
+
+  useEffect(() => {
+    if (!prompts.length) {
+      setEditingPromptId(null);
+      setPromptName("");
+      setPromptText("");
       return;
-
-    try {
-      let model: string | null = null;
-      let providerId: string | null = null;
-      if (editingAction.savedModelId) {
-        const saved = savedModels.find(
-          (m) => m.id === editingAction.savedModelId,
-        );
-        if (saved) {
-          model = saved.model_id;
-          providerId = saved.provider_id;
-        }
-      }
-      if (editingAction.isNew) {
-        await commands.addPostProcessAction(
-          editingAction.key,
-          editingAction.name.trim(),
-          editingAction.prompt.trim(),
-          model,
-          providerId,
-        );
-      } else if (
-        editingAction.originalKey !== undefined &&
-        editingAction.originalKey !== editingAction.key
-      ) {
-        await commands.deletePostProcessAction(editingAction.originalKey);
-        await commands.addPostProcessAction(
-          editingAction.key,
-          editingAction.name.trim(),
-          editingAction.prompt.trim(),
-          model,
-          providerId,
-        );
-      } else {
-        await commands.updatePostProcessAction(
-          editingAction.key,
-          editingAction.name.trim(),
-          editingAction.prompt.trim(),
-          model,
-          providerId,
-        );
-      }
-      await refreshSettings();
-      setEditingAction(null);
-    } catch (error) {
-      console.error("Failed to save action:", error);
     }
-  };
 
-  const handleDelete = async (key: number) => {
-    try {
-      await commands.deletePostProcessAction(key);
-      await refreshSettings();
-      if (editingAction?.key === key) {
-        setEditingAction(null);
-      }
-    } catch (error) {
-      console.error("Failed to delete action:", error);
+    const nextPromptId =
+      selectedPromptId &&
+      prompts.some((prompt) => prompt.id === selectedPromptId)
+        ? selectedPromptId
+        : prompts[0].id;
+
+    setEditingPromptId(nextPromptId);
+  }, [prompts, selectedPromptId]);
+
+  useEffect(() => {
+    if (!activePrompt) {
+      setPromptName("");
+      setPromptText("");
+      return;
     }
-  };
+
+    setPromptName(activePrompt.name);
+    setPromptText(activePrompt.prompt);
+  }, [activePrompt]);
+
+  const handleProviderChange = useCallback(
+    async (providerId: string) => {
+      await setPostProcessProvider(providerId);
+    },
+    [setPostProcessProvider],
+  );
+
+  const handleApiKeyBlur = useCallback(async () => {
+    if (!selectedProviderId || apiKeyInput === currentApiKey) return;
+    await updatePostProcessApiKey(selectedProviderId, apiKeyInput.trim());
+  }, [apiKeyInput, currentApiKey, selectedProviderId, updatePostProcessApiKey]);
+
+  const handleBaseUrlBlur = useCallback(async () => {
+    if (!selectedProviderId || baseUrlInput === selectedProvider?.base_url)
+      return;
+    await updatePostProcessBaseUrl(selectedProviderId, baseUrlInput.trim());
+  }, [
+    baseUrlInput,
+    selectedProvider?.base_url,
+    selectedProviderId,
+    updatePostProcessBaseUrl,
+  ]);
+
+  const handleFetchModels = useCallback(async () => {
+    if (!selectedProviderId) return;
+    setIsFetchingModels(true);
+    try {
+      await fetchPostProcessModels(selectedProviderId);
+    } finally {
+      setIsFetchingModels(false);
+    }
+  }, [fetchPostProcessModels, selectedProviderId]);
+
+  const handleModelSelect = useCallback(
+    async (value: string) => {
+      if (!selectedProviderId) return;
+      await updatePostProcessModel(selectedProviderId, value);
+    },
+    [selectedProviderId, updatePostProcessModel],
+  );
+
+  const handleModelBlur = useCallback(async () => {
+    if (!selectedProviderId || modelInput === currentModel) return;
+    await updatePostProcessModel(selectedProviderId, modelInput.trim());
+  }, [currentModel, modelInput, selectedProviderId, updatePostProcessModel]);
+
+  const handlePromptChange = useCallback(
+    async (value: string) => {
+      if (value === "__new__") {
+        setEditingPromptId(null);
+        setPromptName("");
+        setPromptText("");
+        return;
+      }
+
+      setEditingPromptId(value);
+      const result = await commands.setPostProcessSelectedPrompt(value);
+      if (result.status === "ok") {
+        await refreshSettings();
+      }
+    },
+    [refreshSettings],
+  );
+
+  const handleSavePrompt = useCallback(async () => {
+    const trimmedName = promptName.trim();
+    const trimmedPrompt = promptText.trim();
+
+    if (!trimmedName || !trimmedPrompt) return;
+
+    if (editingPromptId) {
+      const result = await commands.updatePostProcessPrompt(
+        editingPromptId,
+        trimmedName,
+        trimmedPrompt,
+      );
+      if (result.status === "ok") {
+        await refreshSettings();
+      }
+      return;
+    }
+
+    const result = await commands.addPostProcessPrompt(
+      trimmedName,
+      trimmedPrompt,
+    );
+    if (result.status === "ok") {
+      const selectResult = await commands.setPostProcessSelectedPrompt(
+        result.data.id,
+      );
+      if (selectResult.status === "ok") {
+        await refreshSettings();
+      }
+    }
+  }, [editingPromptId, promptName, promptText, refreshSettings]);
+
+  const handleDeletePrompt = useCallback(async () => {
+    if (!editingPromptId) return;
+    const result = await commands.deletePostProcessPrompt(editingPromptId);
+    if (result.status === "ok") {
+      await refreshSettings();
+    }
+  }, [editingPromptId, refreshSettings]);
+
+  const isAppleIntelligence = selectedProviderId === "apple_intelligence";
+  const canEditBaseUrl = selectedProvider?.allow_base_url_edit ?? false;
 
   return (
-    <SettingContainer
-      title={t("settings.postProcessing.actions.title")}
-      description={t("settings.postProcessing.actions.description")}
-      descriptionMode="tooltip"
-      layout="stacked"
-      grouped={true}
-    >
-      <div className="space-y-3">
-        {actions.length > 0 && (
-          <div className="space-y-1">
-            {[...actions]
-              .sort((a, b) => a.key - b.key)
-              .map((action) => (
-                <div
-                  key={action.key}
-                  className="flex items-center gap-3 p-2 rounded-md hover:bg-mid-gray/5 cursor-pointer group"
-                  onClick={() => handleStartEdit(action)}
-                >
-                  <span className="flex items-center justify-center w-6 h-6 rounded bg-blue-500/15 text-blue-400 text-xs font-bold font-mono flex-shrink-0">
-                    {action.key}
-                  </span>
-                  <span className="text-sm text-text flex-1 truncate">
-                    {action.name}
-                    {action.provider_id && action.model && (
-                      <span className="text-xs text-mid-gray/60 ml-2">
-                        {savedModels.find(
-                          (m) =>
-                            m.id === `${action.provider_id}:${action.model}`,
-                        )?.label || action.model}
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    className="text-xs text-mid-gray/60 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(action.key);
-                    }}
-                  >
-                    {t("settings.postProcessing.actions.delete")}
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
+    <div className="max-w-3xl w-full mx-auto space-y-6">
+      <SettingsGroup title={t("settings.postProcessing.title")}>
+        <SettingContainer
+          title={t("settings.postProcessing.api.provider.title")}
+          description={t("settings.postProcessing.api.provider.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+        >
+          <Dropdown
+            selectedValue={selectedProviderId || null}
+            options={providerOptions}
+            onSelect={handleProviderChange}
+            placeholder={t("settings.postProcessing.api.provider.title")}
+          />
+        </SettingContainer>
 
-        {actions.length === 0 && !editingAction && (
-          <div className="p-3 bg-mid-gray/5 rounded-md border border-mid-gray/20">
-            <p className="text-sm text-mid-gray">
-              {t("settings.postProcessing.actions.createFirst")}
-            </p>
-          </div>
-        )}
-
-        {editingAction && (
-          <div className="space-y-3 p-3 rounded-md border border-mid-gray/20 bg-mid-gray/5">
-            <div className="flex gap-3">
-              <div className="space-y-1 flex flex-col">
-                <label className="text-sm font-semibold">
-                  {t("settings.postProcessing.actions.key")}
-                </label>
-                <select
-                  value={editingAction.key}
-                  onChange={(e) =>
-                    setEditingAction({
-                      ...editingAction,
-                      key: Number(e.target.value),
-                    })
-                  }
-                  className="w-10 h-8 rounded bg-blue-500/15 text-blue-400 text-sm font-bold font-mono text-center appearance-none cursor-pointer border border-transparent hover:border-blue-400/40 transition-colors"
-                >
-                  {availableKeysForEditing.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1 flex flex-col flex-1">
-                <label className="text-sm font-semibold">
-                  {t("settings.postProcessing.actions.name")}
-                </label>
+        {selectedProvider && (
+          <>
+            {canEditBaseUrl && (
+              <SettingContainer
+                title={t("settings.postProcessing.api.baseUrl.title")}
+                description={t(
+                  "settings.postProcessing.api.baseUrl.description",
+                )}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
                 <Input
                   type="text"
-                  value={editingAction.name}
-                  onChange={(e) =>
-                    setEditingAction({ ...editingAction, name: e.target.value })
-                  }
+                  value={baseUrlInput}
+                  onChange={(e) => setBaseUrlInput(e.target.value)}
+                  onBlur={handleBaseUrlBlur}
                   placeholder={t(
-                    "settings.postProcessing.actions.namePlaceholder",
+                    "settings.postProcessing.api.baseUrl.placeholder",
                   )}
                   variant="compact"
                 />
-              </div>
-            </div>
+              </SettingContainer>
+            )}
 
-            <div className="space-y-1 flex flex-col">
-              <label className="text-sm font-semibold">
-                {t("settings.postProcessing.actions.prompt")}
-              </label>
-              <Textarea
-                value={editingAction.prompt}
-                onChange={(e) =>
-                  setEditingAction({ ...editingAction, prompt: e.target.value })
-                }
-                placeholder={t(
-                  "settings.postProcessing.actions.promptPlaceholder",
+            {!isAppleIntelligence && (
+              <SettingContainer
+                title={t("settings.postProcessing.api.apiKey.title")}
+                description={t(
+                  "settings.postProcessing.api.apiKey.description",
                 )}
-              />
-              <p className="text-xs text-mid-gray/70">
-                <Trans
-                  i18nKey="settings.postProcessing.prompts.promptTip"
-                  components={{ code: <code /> }}
+                descriptionMode="tooltip"
+                grouped={true}
+              >
+                <Input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  onBlur={handleApiKeyBlur}
+                  placeholder={t(
+                    "settings.postProcessing.api.apiKey.placeholder",
+                  )}
+                  variant="compact"
                 />
-              </p>
-            </div>
+              </SettingContainer>
+            )}
 
-            <div className="space-y-1 flex flex-col">
-              <label className="text-sm font-semibold">
-                {t("settings.postProcessing.actions.model")}
-              </label>
-              <Dropdown
-                selectedValue={editingAction.savedModelId || null}
-                options={modelDropdownOptions}
-                onSelect={(value) =>
-                  setEditingAction({
-                    ...editingAction,
-                    savedModelId: value === "__default__" ? "" : value,
-                  })
-                }
-                placeholder={t(
-                  "settings.postProcessing.actions.modelPlaceholder",
+            <SettingContainer
+              title={t("settings.postProcessing.api.model.title")}
+              description={
+                isAppleIntelligence
+                  ? t("settings.postProcessing.api.model.descriptionApple")
+                  : canEditBaseUrl
+                    ? t("settings.postProcessing.api.model.descriptionCustom")
+                    : t("settings.postProcessing.api.model.descriptionDefault")
+              }
+              descriptionMode="tooltip"
+              grouped={true}
+            >
+              <div className="flex items-center gap-2">
+                {modelOptions.length > 0 ? (
+                  <Dropdown
+                    selectedValue={currentModel || null}
+                    options={modelOptions}
+                    onSelect={handleModelSelect}
+                    placeholder={t(
+                      "settings.postProcessing.api.model.placeholderWithOptions",
+                    )}
+                    className="flex-1"
+                  />
+                ) : (
+                  <Input
+                    type="text"
+                    value={modelInput}
+                    onChange={(e) => setModelInput(e.target.value)}
+                    onBlur={handleModelBlur}
+                    placeholder={t(
+                      isAppleIntelligence
+                        ? "settings.postProcessing.api.model.placeholderApple"
+                        : "settings.postProcessing.api.model.placeholderNoOptions",
+                    )}
+                    variant="compact"
+                    className="flex-1"
+                  />
                 )}
-              />
-              <p className="text-xs text-mid-gray/70">
-                {t("settings.postProcessing.actions.modelTip")}
-              </p>
-            </div>
+                {!isAppleIntelligence && !canEditBaseUrl && (
+                  <button
+                    onClick={handleFetchModels}
+                    disabled={isFetchingModels || !selectedProviderId}
+                    className="flex items-center justify-center h-8 w-8 rounded-md bg-mid-gray/10 hover:bg-mid-gray/20 transition-colors disabled:opacity-40"
+                    title={t("settings.postProcessing.api.model.refreshModels")}
+                  >
+                    <RefreshCcw
+                      className={`w-3.5 h-3.5 ${isFetchingModels ? "animate-spin" : ""}`}
+                    />
+                  </button>
+                )}
+              </div>
+            </SettingContainer>
+          </>
+        )}
+      </SettingsGroup>
 
-            <div className="flex gap-2 pt-1">
+      <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
+        <SettingContainer
+          title={t("settings.postProcessing.prompts.selectedPrompt.title")}
+          description={t(
+            "settings.postProcessing.prompts.selectedPrompt.description",
+          )}
+          descriptionMode="tooltip"
+          grouped={true}
+          layout="stacked"
+        >
+          <div className="space-y-3">
+            <Dropdown
+              selectedValue={editingPromptId}
+              options={promptOptions}
+              onSelect={handlePromptChange}
+              placeholder={t("settings.postProcessing.prompts.selectPrompt")}
+            />
+
+            <Input
+              type="text"
+              value={promptName}
+              onChange={(e) => setPromptName(e.target.value)}
+              placeholder={t(
+                "settings.postProcessing.prompts.promptLabelPlaceholder",
+              )}
+              variant="compact"
+            />
+
+            <Textarea
+              value={promptText}
+              onChange={(e) => setPromptText(e.target.value)}
+              placeholder={t(
+                "settings.postProcessing.prompts.promptInstructionsPlaceholder",
+              )}
+            />
+
+            <div className="flex gap-2">
               <Button
-                onClick={handleSave}
+                onClick={handleSavePrompt}
                 variant="primary"
                 size="md"
-                disabled={
-                  !editingAction.name.trim() || !editingAction.prompt.trim()
-                }
+                disabled={!promptName.trim() || !promptText.trim()}
               >
-                {t("settings.postProcessing.actions.save")}
+                {editingPromptId
+                  ? t("settings.postProcessing.prompts.updatePrompt")
+                  : t("settings.postProcessing.prompts.createPrompt")}
               </Button>
-              <Button
-                onClick={() => setEditingAction(null)}
-                variant="secondary"
-                size="md"
-              >
-                {t("settings.postProcessing.actions.cancel")}
-              </Button>
-              {!editingAction.isNew && (
+              {editingPromptId && (
                 <Button
-                  onClick={() =>
-                    handleDelete(editingAction.originalKey ?? editingAction.key)
-                  }
+                  onClick={handleDeletePrompt}
                   variant="secondary"
                   size="md"
                 >
-                  {t("settings.postProcessing.actions.delete")}
+                  {t("settings.postProcessing.prompts.deletePrompt")}
                 </Button>
               )}
             </div>
           </div>
-        )}
-
-        {!editingAction && actions.length < 9 && (
-          <Button onClick={handleStartCreate} variant="primary" size="md">
-            {t("settings.postProcessing.actions.addAction")}
-          </Button>
-        )}
-
-        {actions.length >= 9 && !editingAction && (
-          <p className="text-xs text-mid-gray/60">
-            {t("settings.postProcessing.actions.maxActionsReached")}
-          </p>
-        )}
-      </div>
-    </SettingContainer>
-  );
-};
-
-const PostProcessingActions = React.memo(PostProcessingActionsComponent);
-PostProcessingActions.displayName = "PostProcessingActions";
-
-export const PostProcessingSettings: React.FC = () => {
-  const { t } = useTranslation();
-
-  return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("settings.postProcessing.actions.title")}>
-        <PostProcessingActions />
+        </SettingContainer>
       </SettingsGroup>
     </div>
   );

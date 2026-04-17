@@ -119,8 +119,7 @@ pub fn export_settings(app: AppHandle, path: String) -> Result<(), String> {
     let settings = get_settings(&app);
     let json = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-    std::fs::write(&path, json)
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("Failed to write file: {}", e))?;
     log::info!("Settings exported to {}", path);
     Ok(())
 }
@@ -128,10 +127,9 @@ pub fn export_settings(app: AppHandle, path: String) -> Result<(), String> {
 #[specta::specta]
 #[tauri::command]
 pub fn import_settings(app: AppHandle, path: String) -> Result<(), String> {
-    let json = std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read file: {}", e))?;
-    let settings: AppSettings = serde_json::from_str(&json)
-        .map_err(|e| format!("Invalid settings file: {}", e))?;
+    let json = std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let settings: AppSettings =
+        serde_json::from_str(&json).map_err(|e| format!("Invalid settings file: {}", e))?;
     write_settings(&app, settings);
     log::info!("Settings imported from {}", path);
     Ok(())

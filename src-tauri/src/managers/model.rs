@@ -758,9 +758,7 @@ impl ModelManager {
         // If no model is selected, pick the first downloaded local model.
         if settings.selected_model.is_empty() {
             let models = self.available_models.lock().unwrap();
-            if let Some(available_model) = models.values().find(|model| {
-                model.is_downloaded
-            }) {
+            if let Some(available_model) = models.values().find(|model| model.is_downloaded) {
                 info!(
                     "Auto-selecting model: {} ({})",
                     available_model.id, available_model.name

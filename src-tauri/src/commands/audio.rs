@@ -6,7 +6,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "windows")]
 use winreg::{
@@ -309,4 +309,14 @@ pub fn get_clamshell_microphone(app: AppHandle) -> Result<String, String> {
 pub fn is_recording(app: AppHandle) -> bool {
     let audio_manager = app.state::<Arc<AudioRecordingManager>>();
     audio_manager.is_recording()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_pause(app: AppHandle) -> Result<bool, String> {
+    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
+    let paused = audio_manager.toggle_pause();
+    app.emit("recording-paused", paused)
+        .map_err(|e| format!("Failed to emit pause state: {}", e))?;
+    Ok(paused)
 }

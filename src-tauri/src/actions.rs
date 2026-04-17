@@ -707,14 +707,8 @@ impl ShortcutAction for TranscribeAction {
 
                             // Post-processing via LLM
                             let processed = if post_process {
-                                match process_action(
-                                    &settings,
-                                    &transcription,
-                                    "",
-                                    None,
-                                    None,
-                                )
-                                .await
+                                match process_action(&settings, &transcription, "", None, None)
+                                    .await
                                 {
                                     Some(result) => {
                                         post_processed_text = Some(result.clone());
@@ -725,16 +719,15 @@ impl ShortcutAction for TranscribeAction {
                                             post_process_prompt,
                                         }
                                     }
-                                    None => {
-                                        ProcessedTranscription {
-                                            final_text,
-                                            post_processed_text,
-                                            post_process_prompt,
-                                        }
-                                    }
+                                    None => ProcessedTranscription {
+                                        final_text,
+                                        post_processed_text,
+                                        post_process_prompt,
+                                    },
                                 }
                             } else {
-                                process_transcription_output(&ah, &transcription, post_process).await
+                                process_transcription_output(&ah, &transcription, post_process)
+                                    .await
                             };
 
                             // Save to history if WAV was saved

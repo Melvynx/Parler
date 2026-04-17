@@ -196,9 +196,7 @@ pub async fn has_any_models_available(
     model_manager: State<'_, Arc<ModelManager>>,
 ) -> Result<bool, String> {
     let models = model_manager.get_available_models();
-    Ok(models
-        .iter()
-        .any(|m| m.is_downloaded))
+    Ok(models.iter().any(|m| m.is_downloaded))
 }
 
 #[tauri::command]
@@ -207,9 +205,7 @@ pub async fn has_any_models_or_downloads(
     model_manager: State<'_, Arc<ModelManager>>,
 ) -> Result<bool, String> {
     let models = model_manager.get_available_models();
-    Ok(models.iter().any(|m| {
-        m.is_downloaded || m.is_downloading
-    }))
+    Ok(models.iter().any(|m| m.is_downloaded || m.is_downloading))
 }
 
 #[tauri::command]
