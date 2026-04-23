@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Parler",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "identifier": "com.melvynx.parler",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -61,7 +61,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERBQTU3OTUyOTRCQ0VFRTAKUldUZzdyeVVVbm1sMm44Vm0wWG5CL0FTMmdsNEx5Y1hwQVFmV1RNMzVMT3VHSnhITWhoYkcwYjkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVCRTczMDVDRkI2NjU4ODYKUldTR1dHYjdYRERuVytTUFRCMXYvaXhVdUpzMitvRDl4M0xRdTUwSWtnb1VBbFJZSG9oZVRGcSsK",
       "endpoints": [
         "https://github.com/Melvynx/Parler/releases/latest/download/latest.json"
       ]

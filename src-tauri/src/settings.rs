@@ -430,6 +430,10 @@ pub struct AppSettings {
     pub whisper_gpu_device: i32,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,
+    #[serde(default)]
+    pub long_audio_model: Option<String>,
+    #[serde(default = "default_long_audio_threshold_seconds")]
+    pub long_audio_threshold_seconds: f32,
 }
 
 fn default_model() -> String {
@@ -636,6 +640,10 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
     }]
 }
 
+fn default_long_audio_threshold_seconds() -> f32 {
+    10.0
+}
+
 fn default_whisper_gpu_device() -> i32 {
     -1 // auto
 }
@@ -834,6 +842,8 @@ pub fn get_default_settings() -> AppSettings {
         ort_accelerator: OrtAcceleratorSetting::default(),
         whisper_gpu_device: default_whisper_gpu_device(),
         extra_recording_buffer_ms: 0,
+        long_audio_model: None,
+        long_audio_threshold_seconds: default_long_audio_threshold_seconds(),
     }
 }
 
