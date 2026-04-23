@@ -55,11 +55,11 @@ jobs:
           - platform: "macos-26" # for Arm based macs (M1 and above). Uses macOS 26 for Apple Intelligence SDK.
             args: "--target aarch64-apple-darwin"
             target: "aarch64-apple-darwin"
-            apple_signing: false
+            apple_signing: true
           - platform: "macos-latest" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
             target: "x86_64-apple-darwin"
-            apple_signing: false
+            apple_signing: true
 
     uses: ./.github/workflows/build.yml
     with:
